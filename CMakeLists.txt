@@ -16,6 +16,9 @@ set(SOURCE_ALL
   ./source/vulkan_device.cpp
   ./source/vulkan_swapchain.cpp
   ./source/vulkan_model.cpp
+  ./source/vulkan_buffer.cpp
+  ./source/vulkan_descriptors.cpp
+  ./source/vulkan_texture.cpp
 )
 
 

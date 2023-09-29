@@ -1,5 +1,6 @@
 #pragma once
 
+#include "source/vulkan_descriptors.h"
 #include "source/vulkan_model.h"
 #include "window.h"
 #include "vulkan_device.h"
@@ -15,9 +16,9 @@
 
 class App {
 public:
-	int width = 800, height = 600;
+	int width, height;
 
-	App(std::string name);
+	App(std::string name, int width, int height);
 	~App();
 
 	App(const App &) = delete;
@@ -40,13 +41,22 @@ private:
 	void LoadModel();
 	void LoadTexture(const char* filename, VkBuffer &imageBuffer, VkDeviceMemory &imageBufferMemory);
 
-	Window window{width, height, "Vulkan Tests"};
-	VulkanDevice device{window};
+	Window window;
+	VulkanDevice device;
 	std::unique_ptr<VulkanSwapChain> swapChain;
 	std::unique_ptr<VulkanPipeline> pipeline;
 	VkPipelineLayout pipelineLayout;
 	std::vector<VkCommandBuffer> commandBuffers;
 	std::unique_ptr<VulkanModel> model;
 
-	bool running = true;
+	struct Triangle {
+		std::vector<float> vertices = {
+			// pos       // color
+			0.0f, -0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
+			0.5f,  0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
+			-0.5f,  0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
+		} ;
+
+		ShaderInfo shaderinfo;
+	} triangle;
 };

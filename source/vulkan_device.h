@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 
 	
@@ -41,6 +42,7 @@ public:
 
 	VkCommandPool GetCommandPool() { return commandPool; }
 	VkDevice Device() { return device_; }
+	VkPhysicalDevice GetPhysicalDevice() { return physicalDevice; }
 	VkSurfaceKHR Surface() { return surface_; }
 	VkQueue GraphicsQueue() { return graphicsQueue_; }
 	VkQueue PresentQueue() { return presentQueue_; }

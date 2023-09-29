@@ -8,7 +8,7 @@
 
 int main(const int argc, const char ** argv)
 {
-	App app{"Vulkan Tests"};
+	App app{"Vulkan Tests", 800, 600};
 
 	try {
 		app.Run();

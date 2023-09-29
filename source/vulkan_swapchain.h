@@ -11,7 +11,7 @@
 
 class VulkanSwapChain {
 public:
-	static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+	static constexpr int MAX_FRAMES_IN_FLIGHT = 3;
 
 	VulkanSwapChain(VulkanDevice &deviceRef, VkExtent2D windowExtent);
 	VulkanSwapChain(VulkanDevice &deviceRef, VkExtent2D windowExtent, std::shared_ptr<VulkanSwapChain> previous);

@@ -1,11 +1,14 @@
 #include "app.h"
 
-#include "SDL_events.h"
-#include "source/es_vulkan.h"
-#include "source/logger.h"
-#include "source/vulkan_model.h"
-#include "source/vulkan_pipeline.h"
-#include "source/vulkan_swapchain.h"
+#include "es_vulkan.h"
+#include "logger.h"
+#include "vulkan_buffer.h"
+#include "vulkan_descriptors.h"
+#include "vulkan_device.h"
+#include "vulkan_model.h"
+#include "vulkan_pipeline.h"
+#include "vulkan_swapchain.h"
+#include "window.h"
 
 #include <GLFW/glfw3.h>
 #include <array>
@@ -20,32 +23,57 @@
 #include <vulkan/vulkan_core.h>
 #include<unistd.h>
 #include <chrono>
-#include <SOIL/SOIL.h>
 
-namespace Triangle {
-	std::vector<float> vertices = {
-		// pos       // color
-		 0.0f, -0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
-		 0.5f,  0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
-		-0.5f,  0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
-	};
 
-	std::vector<AttributeSize> attributeDescriptors = {
+
+App::App(std::string name, int width, int height)
+: width(width), height(height), window(width, height, name), device(window)
+{
+	triangle.shaderinfo.attributeLayout = {
 		AttributeSize::VECTOR_TWO,
 		AttributeSize::VECTOR_FOUR,
 	};
-	
-	std::vector<AttributeSize> pushConstantVertexDescriptors = {
+
+	triangle.shaderinfo.uniformLayout = {
 		AttributeSize::VECTOR_TWO,
 		AttributeSize::VECTOR_THREE,
 	};
-}
 
-
-
-App::App(std::string name)
-{
 	LoadModel();
+
+	uint32_t uniformSize = 0;
+	for(const auto &uniformValue : triangle.shaderinfo.uniformLayout)
+		uniformSize += EsToVulkan::FORMAT_MAP_TYPE_SIZE.at(uniformValue);
+	for(int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++)
+	{
+		triangle.shaderinfo.uniformBuffers.emplace_back();
+		triangle.shaderinfo.uniformBuffers[i] = std::make_unique<VulkanBuffer>(
+			device,
+			uniformSize,
+			1,
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+			device.properties.limits.minUniformBufferOffsetAlignment);
+		triangle.shaderinfo.uniformBuffers[i]->Map();
+	}
+
+
+	triangle.shaderinfo.desriptorPool = VulkanDescriptorPool::Builder(device)
+		.setMaxSets(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT)
+		.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VulkanSwapChain::MAX_FRAMES_IN_FLIGHT)
+		.build();
+	triangle.shaderinfo.desriptorSetLayout = VulkanDescriptorSetLayout::Builder(device)
+		.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+		.build();
+	for(int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++)
+	{
+		triangle.shaderinfo.descriptorSets.emplace_back();
+		auto bufferInfo = triangle.shaderinfo.uniformBuffers[i]->DescriptorInfo();
+		VulkanDescriptorWriter(*triangle.shaderinfo.desriptorSetLayout, *triangle.shaderinfo.desriptorPool)
+			.writeBuffer(0, &bufferInfo)
+			.build(triangle.shaderinfo.descriptorSets[i]);
+	}
+
 	CreatePipelineLayout();
 	RecreateSwapChain();
 	CreateCommandBuffers();
@@ -60,7 +88,7 @@ App::~App()
 
 
 void App::Run()
-{
+{	
 	while(!window.ShouldClose())
 	{
 		//auto start = std::chrono::high_resolution_clock::now();
@@ -83,23 +111,14 @@ void App::Run()
 
 void App::CreatePipelineLayout()
 {
-	uint32_t vertexPushConstantsSize = 0;
-	for(const auto &pushConstantVertexDescriptor : Triangle::pushConstantVertexDescriptors)
-		vertexPushConstantsSize += EsToVulkan::FORMAT_MAP_SIZE.at(pushConstantVertexDescriptor);
-
-	Logger::Status(std::to_string(vertexPushConstantsSize * sizeof(float)));
-
-	VkPushConstantRange pushConstantRange{};
-	pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-	pushConstantRange.offset = 0;
-	pushConstantRange.size = vertexPushConstantsSize * sizeof(float);
+	std::vector<VkDescriptorSetLayout> descriptorSetLayouts{triangle.shaderinfo.desriptorSetLayout->getDescriptorSetLayout()};
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 0;
-	pipelineLayoutInfo.pSetLayouts = nullptr;
-	pipelineLayoutInfo.pushConstantRangeCount = 1;
-	pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+	pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+	pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+	pipelineLayoutInfo.pushConstantRangeCount = 0;
+	pipelineLayoutInfo.pPushConstantRanges = nullptr;
 	if(vkCreatePipelineLayout(device.Device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
 		throw std::runtime_error("failed to create pipline layout");
 }
@@ -115,7 +134,7 @@ void App::CreatePipeline()
 	pipelineConfig.renderPass = swapChain->GetRenderPass();
 	pipelineConfig.pipelineLayout = pipelineLayout;
 	pipeline = std::make_unique<VulkanPipeline>(device,
-		"../../resources/shaders/shader.vert.spv", "../../resources/shaders/shader.frag.spv", pipelineConfig, Triangle::attributeDescriptors);
+		"../../resources/shaders/shader.vert.spv", "../../resources/shaders/shader.frag.spv", pipelineConfig, triangle.shaderinfo.attributeLayout);
 }
 
 
@@ -232,21 +251,26 @@ void App::RecordCommandBuffer(int imageIndex)
 	pipeline->Bind(commandBuffers[imageIndex]);
 	model->Bind(commandBuffers[imageIndex]);
 
-	for(int j = 0; j < 4; j++)
-	{
-		std::vector<float> pushConstantData = {
-			0.0f, -0.4f + j * 0.25f, // offset
-			0.0f, 0.0f, 0.2f + 0.5f * j, // color
-		};
+	std::vector<float> uniformData = {
+		0.0f, -0.4f + 0.25f, // offset
+		0.0f, 0.0f, 0.2f + 0.5f, // color
+	};
 
-		vkCmdPushConstants(
-			commandBuffers[imageIndex],
-			pipelineLayout,
-			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-			0,
-			5 * sizeof(float),
-			pushConstantData.data());
-		
+	triangle.shaderinfo.uniformBuffers[imageIndex]->WriteToBuffer(uniformData.data());
+	triangle.shaderinfo.uniformBuffers[imageIndex]->Flush();
+
+	vkCmdBindDescriptorSets(
+		commandBuffers[imageIndex],
+		VK_PIPELINE_BIND_POINT_GRAPHICS,
+		pipelineLayout,
+		0,
+		1,
+		&triangle.shaderinfo.descriptorSets[imageIndex],
+		0,
+		nullptr);
+
+	for(int j = 0; j < 4; j++)
+	{	
 		model->Draw(commandBuffers[imageIndex]);
 	}
 
@@ -260,19 +284,11 @@ void App::RecordCommandBuffer(int imageIndex)
 
 void App::LoadModel()
 {
-	model = std::make_unique<VulkanModel>(device, Triangle::vertices, Triangle::attributeDescriptors);
+	model = std::make_unique<VulkanModel>(device, triangle.vertices, triangle.shaderinfo.attributeLayout);
 }
 
 
 
 void App::LoadTexture(const char* filename, VkBuffer &imageBuffer, VkDeviceMemory &imageBufferMemory)
 {
-	int width, height;
-	unsigned char *pixels = SOIL_load_image(filename, &width, &height, 0, SOIL_LOAD_RGBA);
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	VkDeviceSize imageSize = width * height * 4;
-
-	createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 }

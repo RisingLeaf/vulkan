@@ -1,10 +1,12 @@
 #pragma once
 
 #include "source/vulkan_device.h"
+#include "source/vulkan_buffer.h"
 
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <vulkan/vulkan_core.h>
 #include "es_vulkan.h"
 
@@ -32,8 +34,7 @@ private:
 	void CreateVertexBuffers(const std::vector<float> &vertices);
 
 	VulkanDevice &device;
-	VkBuffer vertexBuffer;
-	VkDeviceMemory vertexBufferMemory;
+	std::unique_ptr<VulkanBuffer> vertexBuffer;
 	uint32_t vertexCount;
 
 	const std::vector<AttributeSize> attributeDescriptors;

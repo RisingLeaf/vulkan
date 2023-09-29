@@ -1,10 +1,12 @@
 #include "vulkan_model.h"
 #include "source/es_vulkan.h"
 #include "source/logger.h"
+#include "source/vulkan_buffer.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -19,17 +21,13 @@ VulkanModel::VulkanModel(VulkanDevice &device, const std::vector<float> &vertice
 
 
 
-VulkanModel::~VulkanModel()
-{
-	vkDestroyBuffer(device.Device(), vertexBuffer, nullptr);
-	vkFreeMemory(device.Device(), vertexBufferMemory, nullptr);
-}
+VulkanModel::~VulkanModel() { }
 
 
 
 void VulkanModel::Bind(VkCommandBuffer commandBuffer)
 {
-	VkBuffer buffers[] = {vertexBuffer};
+	VkBuffer buffers[] = {vertexBuffer->GetBuffer()};
 	VkDeviceSize offsets[] = {0};
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
 }
@@ -51,32 +49,20 @@ void VulkanModel::CreateVertexBuffers(const std::vector<float> &vertices)
 
 	vertexCount = static_cast<uint32_t>(vertices.size() / sizePerVertex);
 	assert(vertexCount >= 3 && "vertex count must be at least 3");
+
 	VkDeviceSize bufferSize = sizeof(float) * vertexCount * sizePerVertex;
+	uint32_t vertexSize = sizePerVertex * sizeof(float);
 
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-
-	device.CreateBuffer(
-		bufferSize,
+	VulkanBuffer stagingBuffer(device, vertexSize, vertexCount,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
-		stagingBufferMemory);
-	
-	void *data;
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-	vkMapMemory(device.Device(), stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
-	vkUnmapMemory(device.Device(), stagingBufferMemory);
+	stagingBuffer.Map();
+	stagingBuffer.WriteToBuffer((void *)vertices.data());
 
-	device.CreateBuffer(
-		bufferSize,
+	vertexBuffer = std::make_unique<VulkanBuffer>(device, vertexSize, vertexCount,
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		vertexBuffer,
-		vertexBufferMemory);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	device.CopyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-	vkDestroyBuffer(device.Device(), stagingBuffer, nullptr);
-	vkFreeMemory(device.Device(), stagingBufferMemory, nullptr);
+	device.CopyBuffer(stagingBuffer.GetBuffer(), vertexBuffer->GetBuffer(), bufferSize);
 }
