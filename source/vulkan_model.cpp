@@ -1,7 +1,7 @@
 #include "vulkan_model.h"
-#include "source/es_vulkan.h"
-#include "source/logger.h"
-#include "source/vulkan_buffer.h"
+#include "es_vulkan.h"
+#include "logger.h"
+#include "vulkan_buffer.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>

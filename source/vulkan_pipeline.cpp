@@ -8,11 +8,12 @@
 #include <stdexcept>
 #include <string>
 #include <vulkan/vulkan_core.h>
+#include <numeric>
 
 #include "logger.h"
-#include "source/es_vulkan.h"
-#include "source/vulkan_device.h"
-#include "source/vulkan_model.h"
+#include "es_vulkan.h"
+#include "vulkan_device.h"
+#include "vulkan_model.h"
 
 
 
@@ -106,6 +107,51 @@ void VulkanPipeline::DefaultPipelineConfigInfo(VulkanPipelineConfigInfo &configI
 	configInfo.dynamicStateInfo.pDynamicStates = configInfo.dynamicStateEnables.data();
 	configInfo.dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(configInfo.dynamicStateEnables.size());
 	configInfo.dynamicStateInfo.flags = 0;
+}
+
+
+
+VulkanShaderInfo VulkanPipeline::PrepareShaderInfo(VulkanDevice &device, ShaderInfo &inputInfo, const int maxFrames)
+{
+	VulkanShaderInfo shaderInfo;
+	uint32_t uniformSize = 0;
+	for(const auto &uniformValue : inputInfo.uniformLayout)
+		uniformSize += EsToVulkan::FORMAT_MAP_TYPE_SIZE.at(uniformValue);
+
+	auto minOffsetAlignment = std::lcm(
+		device.properties.limits.minUniformBufferOffsetAlignment,
+		device.properties.limits.nonCoherentAtomSize);
+	for(int i = 0; i < maxFrames; i++)
+	{
+		shaderInfo.uniformBuffers.emplace_back();
+		shaderInfo.uniformBuffers[i] = std::make_unique<VulkanBuffer>(
+			device,
+			uniformSize,
+			40,
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+			device.properties.limits.minUniformBufferOffsetAlignment);
+		shaderInfo.uniformBuffers[i]->Map();
+	}
+
+
+	shaderInfo.desriptorPool = VulkanDescriptorPool::Builder(device)
+		.setMaxSets(40 * maxFrames)
+		.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 40 * maxFrames)
+		.build();
+	shaderInfo.desriptorSetLayout = VulkanDescriptorSetLayout::Builder(device)
+		.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
+		.build();
+	for(int i = 0; i < 40 * maxFrames; i++)
+	{
+		shaderInfo.descriptorSets.emplace_back();
+		auto bufferInfo = shaderInfo.uniformBuffers[static_cast<int>(i / 40)]->DescriptorInfo();
+		VulkanDescriptorWriter(*shaderInfo.desriptorSetLayout, *shaderInfo.desriptorPool)
+			.writeBuffer(0, &bufferInfo)
+			.build(shaderInfo.descriptorSets[i]);
+	}
+
+	return shaderInfo;
 }
 
 
@@ -227,4 +273,3 @@ void VulkanPipeline::CreateShaderModule(const std::vector<char> &code, VkShaderM
 	if(vkCreateShaderModule(device.Device(), &createInfo, nullptr, shaderModule) != VK_SUCCESS)
 		throw std::runtime_error("failed to create shader module");
 }
-

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "source/vulkan_device.h"
+#include "vulkan_device.h"
 
 
 
@@ -30,7 +30,7 @@ public:
 	void *GetMappedMemory() const { return mapped; }
 	uint32_t GetInstanceCount() const { return instanceCount; }
 	VkDeviceSize GetInstanceSize() const { return instanceSize; }
-	VkDeviceSize GetAlignmentSize() const { return instanceSize; }
+	VkDeviceSize GetAlignmentSize() const { return alignmentSize; }
 	VkBufferUsageFlags GetUsageFlags() const { return usageFlags; }
 	VkMemoryPropertyFlags GetMemoryPropertyFlags() const { return memoryPropertyFlags; }
 	VkDeviceSize GetBufferSize() const { return bufferSize; }

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "source/vulkan_device.h"
-#include "source/vulkan_buffer.h"
+#include "vulkan_device.h"
+#include "vulkan_buffer.h"
 
 
 #include <cstdint>

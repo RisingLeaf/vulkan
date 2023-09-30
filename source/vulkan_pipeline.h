@@ -29,6 +29,14 @@ struct VulkanPipelineConfigInfo {
 	uint32_t subpass = 0;
 };
 
+struct VulkanShaderInfo {
+	std::vector<std::unique_ptr<VulkanBuffer>> uniformBuffers;
+
+	std::unique_ptr<VulkanDescriptorPool> desriptorPool;
+	std::unique_ptr<VulkanDescriptorSetLayout> desriptorSetLayout;
+	std::vector<VkDescriptorSet> descriptorSets;
+};
+
 class VulkanPipeline {
 public:
 	VulkanPipeline(VulkanDevice &device, const std::string &vertFilePath, const std::string &fragFilePath,
@@ -42,6 +50,8 @@ public:
 
 	void Bind(VkCommandBuffer commandBuffer);
 	static void DefaultPipelineConfigInfo(VulkanPipelineConfigInfo &configInfo);
+
+	static VulkanShaderInfo PrepareShaderInfo(VulkanDevice &device, ShaderInfo &inputInfo, const int maxFrames);
 
 private:
 	static std::vector<char> ReadFile(const std::string &filepath);

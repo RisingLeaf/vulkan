@@ -1,7 +1,7 @@
 #pragma once
 
-#include "source/vulkan_buffer.h"
-#include "source/vulkan_descriptors.h"
+#include "vulkan_buffer.h"
+#include "vulkan_descriptors.h"
 
 #include <map>
 #include <memory>
@@ -39,10 +39,4 @@ namespace EsToVulkan {
 struct ShaderInfo {
 	std::vector<AttributeSize> attributeLayout;
 	std::vector<AttributeSize> uniformLayout;
-
-	std::vector<std::unique_ptr<VulkanBuffer>> uniformBuffers;
-
-	std::unique_ptr<VulkanDescriptorPool> desriptorPool;
-	std::unique_ptr<VulkanDescriptorSetLayout> desriptorSetLayout;
-	std::vector<VkDescriptorSet> descriptorSets;
 };

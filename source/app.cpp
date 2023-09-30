@@ -29,52 +29,20 @@
 App::App(std::string name, int width, int height)
 : width(width), height(height), window(width, height, name), device(window)
 {
-	triangle.shaderinfo.attributeLayout = {
+	pipelineDescriptions.emplace_back();
+	pipelineDescriptions[0].shaderInfo.attributeLayout = {
 		AttributeSize::VECTOR_TWO,
 		AttributeSize::VECTOR_FOUR,
 	};
-
-	triangle.shaderinfo.uniformLayout = {
+	pipelineDescriptions[0].shaderInfo.uniformLayout = {
 		AttributeSize::VECTOR_TWO,
 		AttributeSize::VECTOR_THREE,
 	};
+	pipelineDescriptions[0].pipelineShaderInfo = VulkanPipeline::PrepareShaderInfo(device, pipelineDescriptions[0].shaderInfo,
+		VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+	CreatePipelineLayout(pipelineDescriptions[0]);
 
-	LoadModel();
-
-	uint32_t uniformSize = 0;
-	for(const auto &uniformValue : triangle.shaderinfo.uniformLayout)
-		uniformSize += EsToVulkan::FORMAT_MAP_TYPE_SIZE.at(uniformValue);
-	for(int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++)
-	{
-		triangle.shaderinfo.uniformBuffers.emplace_back();
-		triangle.shaderinfo.uniformBuffers[i] = std::make_unique<VulkanBuffer>(
-			device,
-			uniformSize,
-			1,
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-			device.properties.limits.minUniformBufferOffsetAlignment);
-		triangle.shaderinfo.uniformBuffers[i]->Map();
-	}
-
-
-	triangle.shaderinfo.desriptorPool = VulkanDescriptorPool::Builder(device)
-		.setMaxSets(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT)
-		.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VulkanSwapChain::MAX_FRAMES_IN_FLIGHT)
-		.build();
-	triangle.shaderinfo.desriptorSetLayout = VulkanDescriptorSetLayout::Builder(device)
-		.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-		.build();
-	for(int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++)
-	{
-		triangle.shaderinfo.descriptorSets.emplace_back();
-		auto bufferInfo = triangle.shaderinfo.uniformBuffers[i]->DescriptorInfo();
-		VulkanDescriptorWriter(*triangle.shaderinfo.desriptorSetLayout, *triangle.shaderinfo.desriptorPool)
-			.writeBuffer(0, &bufferInfo)
-			.build(triangle.shaderinfo.descriptorSets[i]);
-	}
-
-	CreatePipelineLayout();
+	LoadModel(pipelineDescriptions[0].shaderInfo);
 	RecreateSwapChain();
 	CreateCommandBuffers();
 }
@@ -82,7 +50,8 @@ App::App(std::string name, int width, int height)
 
 App::~App()
 {
-	vkDestroyPipelineLayout(device.Device(), pipelineLayout, nullptr);
+	for(auto &pipelineDescription : pipelineDescriptions)
+		vkDestroyPipelineLayout(device.Device(), pipelineDescription.pipelineLayout, nullptr);
 }
 
 
@@ -91,17 +60,9 @@ void App::Run()
 {	
 	while(!window.ShouldClose())
 	{
-		//auto start = std::chrono::high_resolution_clock::now();
 		glfwPollEvents();
 
 		DrawFrame();
-
-		/*
-		static const double microsecond = 1000000;
-		auto end = std::chrono::high_resolution_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-		Logger::Status("Elapsed time is: " + std::to_string(1. / (static_cast<double>(duration.count()) / microsecond)));
-		*/
 	}
 
 	vkDeviceWaitIdle(device.Device());
@@ -109,9 +70,9 @@ void App::Run()
 
 
 
-void App::CreatePipelineLayout()
+void App::CreatePipelineLayout(VulkanPipelineDescription &pipelineDescription)
 {
-	std::vector<VkDescriptorSetLayout> descriptorSetLayouts{triangle.shaderinfo.desriptorSetLayout->getDescriptorSetLayout()};
+	std::vector<VkDescriptorSetLayout> descriptorSetLayouts{pipelineDescription.pipelineShaderInfo.desriptorSetLayout->getDescriptorSetLayout()};
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -119,22 +80,22 @@ void App::CreatePipelineLayout()
 	pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
 	pipelineLayoutInfo.pushConstantRangeCount = 0;
 	pipelineLayoutInfo.pPushConstantRanges = nullptr;
-	if(vkCreatePipelineLayout(device.Device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+	if(vkCreatePipelineLayout(device.Device(), &pipelineLayoutInfo, nullptr, &pipelineDescription.pipelineLayout) != VK_SUCCESS)
 		throw std::runtime_error("failed to create pipline layout");
 }
 
 
 
-void App::CreatePipeline()
+void App::CreatePipeline(VulkanPipelineDescription &pipelineDescription)
 {
 	assert(swapChain != nullptr && "Cannot create pipeline before swap chain");
-	assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
+	assert(pipelineDescription.pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
 	VulkanPipelineConfigInfo pipelineConfig{};
   	VulkanPipeline::DefaultPipelineConfigInfo(pipelineConfig);
 	pipelineConfig.renderPass = swapChain->GetRenderPass();
-	pipelineConfig.pipelineLayout = pipelineLayout;
-	pipeline = std::make_unique<VulkanPipeline>(device,
-		"../../resources/shaders/shader.vert.spv", "../../resources/shaders/shader.frag.spv", pipelineConfig, triangle.shaderinfo.attributeLayout);
+	pipelineConfig.pipelineLayout = pipelineDescription.pipelineLayout;
+	pipelineDescription.pipeline = std::make_unique<VulkanPipeline>(device,
+		"../../resources/shaders/shader.vert.spv", "../../resources/shaders/shader.frag.spv", pipelineConfig, pipelineDescription.shaderInfo.attributeLayout);
 }
 
 
@@ -211,7 +172,8 @@ void App::RecreateSwapChain()
 		}
 	}
 
-	CreatePipeline();
+	for(auto &pipelineDescription : pipelineDescriptions)
+		CreatePipeline(pipelineDescription);
 }
 
 
@@ -248,30 +210,35 @@ void App::RecordCommandBuffer(int imageIndex)
 	vkCmdSetViewport(commandBuffers[imageIndex], 0, 1, &viewport);
 	vkCmdSetScissor(commandBuffers[imageIndex], 0, 1, &scissor);
 
-	pipeline->Bind(commandBuffers[imageIndex]);
-	model->Bind(commandBuffers[imageIndex]);
+	pipelineDescriptions[0].pipeline->Bind(commandBuffers[imageIndex]);
+	triangle.model->Bind(commandBuffers[imageIndex]);
 
 	std::vector<float> uniformData = {
 		0.0f, -0.4f + 0.25f, // offset
 		0.0f, 0.0f, 0.2f + 0.5f, // color
 	};
 
-	triangle.shaderinfo.uniformBuffers[imageIndex]->WriteToBuffer(uniformData.data());
-	triangle.shaderinfo.uniformBuffers[imageIndex]->Flush();
+	pipelineDescriptions[0].pipelineShaderInfo.uniformBuffers[imageIndex]->WriteToIndex(uniformData.data(), 0);
+	pipelineDescriptions[0].pipelineShaderInfo.uniformBuffers[imageIndex]->FlushIndex(0);
 
+	std::vector<uint32_t> offsets( 120,
+		static_cast<uint32_t>(pipelineDescriptions[0].pipelineShaderInfo.uniformBuffers[imageIndex]->GetAlignmentSize())
+	);
+
+	uint32_t uniform_offset = pipelineDescriptions[0].pipelineShaderInfo.uniformBuffers[imageIndex]->GetAlignmentSize();
 	vkCmdBindDescriptorSets(
 		commandBuffers[imageIndex],
 		VK_PIPELINE_BIND_POINT_GRAPHICS,
-		pipelineLayout,
+		pipelineDescriptions[0].pipelineLayout,
 		0,
 		1,
-		&triangle.shaderinfo.descriptorSets[imageIndex],
-		0,
-		nullptr);
+		&pipelineDescriptions[0].pipelineShaderInfo.descriptorSets[imageIndex],
+		1,
+		offsets.data());
 
 	for(int j = 0; j < 4; j++)
 	{	
-		model->Draw(commandBuffers[imageIndex]);
+		triangle.model->Draw(commandBuffers[imageIndex]);
 	}
 
 	vkCmdEndRenderPass(commandBuffers[imageIndex]);
@@ -282,13 +249,7 @@ void App::RecordCommandBuffer(int imageIndex)
 
 
 
-void App::LoadModel()
+void App::LoadModel(const ShaderInfo &shaderInfo)
 {
-	model = std::make_unique<VulkanModel>(device, triangle.vertices, triangle.shaderinfo.attributeLayout);
-}
-
-
-
-void App::LoadTexture(const char* filename, VkBuffer &imageBuffer, VkDeviceMemory &imageBufferMemory)
-{
+	triangle.model = std::make_unique<VulkanModel>(device, triangle.vertices, shaderInfo.attributeLayout);
 }
