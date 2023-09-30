@@ -30,8 +30,8 @@ namespace EsToVulkan {
 	};
 	const std::map<AttributeSize, unsigned long> FORMAT_MAP_TYPE_SIZE = {
 		{AttributeSize::SIMPLE_FLOAT, sizeof(float)},
-		{AttributeSize::VECTOR_TWO, sizeof(float) * 2},
-		{AttributeSize::VECTOR_THREE, sizeof(float) * 3},
+		{AttributeSize::VECTOR_TWO, sizeof(float) * 8},
+		{AttributeSize::VECTOR_THREE, sizeof(float) * 8},
 		{AttributeSize::VECTOR_FOUR, sizeof(float) * 4},
 	};
 }

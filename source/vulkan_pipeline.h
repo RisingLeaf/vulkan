@@ -30,7 +30,7 @@ struct VulkanPipelineConfigInfo {
 };
 
 struct VulkanShaderInfo {
-	std::vector<std::unique_ptr<VulkanBuffer>> uniformBuffers;
+	std::unique_ptr<VulkanBuffer> uniformBuffer;
 
 	std::unique_ptr<VulkanDescriptorPool> desriptorPool;
 	std::unique_ptr<VulkanDescriptorSetLayout> desriptorSetLayout;

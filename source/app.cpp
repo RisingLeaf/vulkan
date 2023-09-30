@@ -213,31 +213,35 @@ void App::RecordCommandBuffer(int imageIndex)
 	pipelineDescriptions[0].pipeline->Bind(commandBuffers[imageIndex]);
 	triangle.model->Bind(commandBuffers[imageIndex]);
 
-	std::vector<float> uniformData = {
-		0.0f, -0.4f + 0.25f, // offset
-		0.0f, 0.0f, 0.2f + 0.5f, // color
+	static const uint32_t alignmentSize = pipelineDescriptions[0].pipelineShaderInfo.uniformBuffer->GetAlignmentSize();
+	static const std::vector<uint32_t> offsets{ 
+		alignmentSize * (40 * imageIndex + 0),
+		alignmentSize * (40 * imageIndex + 1),
+		alignmentSize * (40 * imageIndex + 2),
+		alignmentSize * (40 * imageIndex + 3),
 	};
 
-	pipelineDescriptions[0].pipelineShaderInfo.uniformBuffers[imageIndex]->WriteToIndex(uniformData.data(), 0);
-	pipelineDescriptions[0].pipelineShaderInfo.uniformBuffers[imageIndex]->FlushIndex(0);
-
-	std::vector<uint32_t> offsets( 120,
-		static_cast<uint32_t>(pipelineDescriptions[0].pipelineShaderInfo.uniformBuffers[imageIndex]->GetAlignmentSize())
-	);
-
-	uint32_t uniform_offset = pipelineDescriptions[0].pipelineShaderInfo.uniformBuffers[imageIndex]->GetAlignmentSize();
-	vkCmdBindDescriptorSets(
-		commandBuffers[imageIndex],
-		VK_PIPELINE_BIND_POINT_GRAPHICS,
-		pipelineDescriptions[0].pipelineLayout,
-		0,
-		1,
-		&pipelineDescriptions[0].pipelineShaderInfo.descriptorSets[imageIndex],
-		1,
-		offsets.data());
-
 	for(int j = 0; j < 4; j++)
-	{	
+	{
+		std::vector<float> uniformData = {
+			0.0f, -0.1f * j, // offset
+			0.0f,  0.0f, 0.25f * j, // color
+		};
+
+		uint32_t bufferIndex = (40 * imageIndex) + j;
+		pipelineDescriptions[0].pipelineShaderInfo.uniformBuffer->WriteToIndex(uniformData.data(), bufferIndex);
+		pipelineDescriptions[0].pipelineShaderInfo.uniformBuffer->FlushIndex(bufferIndex);
+
+		vkCmdBindDescriptorSets(
+			commandBuffers[imageIndex],
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			pipelineDescriptions[0].pipelineLayout,
+			0,
+			1,
+			&pipelineDescriptions[0].pipelineShaderInfo.descriptorSets[bufferIndex],
+			j,
+			offsets.data());
+		
 		triangle.model->Draw(commandBuffers[imageIndex]);
 	}
 

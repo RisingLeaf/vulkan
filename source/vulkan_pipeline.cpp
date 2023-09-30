@@ -118,37 +118,41 @@ VulkanShaderInfo VulkanPipeline::PrepareShaderInfo(VulkanDevice &device, ShaderI
 	for(const auto &uniformValue : inputInfo.uniformLayout)
 		uniformSize += EsToVulkan::FORMAT_MAP_TYPE_SIZE.at(uniformValue);
 
+	Logger::Status(std::to_string(uniformSize));
+
+	uint32_t bufferCount = 40;
+
 	auto minOffsetAlignment = std::lcm(
 		device.properties.limits.minUniformBufferOffsetAlignment,
 		device.properties.limits.nonCoherentAtomSize);
-	for(int i = 0; i < maxFrames; i++)
-	{
-		shaderInfo.uniformBuffers.emplace_back();
-		shaderInfo.uniformBuffers[i] = std::make_unique<VulkanBuffer>(
-			device,
-			uniformSize,
-			40,
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-			device.properties.limits.minUniformBufferOffsetAlignment);
-		shaderInfo.uniformBuffers[i]->Map();
-	}
+
+	shaderInfo.uniformBuffer = std::make_unique<VulkanBuffer>(
+		device,
+		uniformSize,
+		bufferCount * maxFrames,
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+		device.properties.limits.minUniformBufferOffsetAlignment);
+	shaderInfo.uniformBuffer->Map();
 
 
 	shaderInfo.desriptorPool = VulkanDescriptorPool::Builder(device)
-		.setMaxSets(40 * maxFrames)
-		.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 40 * maxFrames)
+		.setMaxSets(bufferCount * maxFrames)
+		.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, bufferCount * maxFrames)
 		.build();
 	shaderInfo.desriptorSetLayout = VulkanDescriptorSetLayout::Builder(device)
 		.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
 		.build();
-	for(int i = 0; i < 40 * maxFrames; i++)
+	for(int i = 0; i < maxFrames; i++)
 	{
-		shaderInfo.descriptorSets.emplace_back();
-		auto bufferInfo = shaderInfo.uniformBuffers[static_cast<int>(i / 40)]->DescriptorInfo();
-		VulkanDescriptorWriter(*shaderInfo.desriptorSetLayout, *shaderInfo.desriptorPool)
-			.writeBuffer(0, &bufferInfo)
-			.build(shaderInfo.descriptorSets[i]);
+		for(int j = 0; j < bufferCount; j++)
+		{
+			shaderInfo.descriptorSets.emplace_back();
+			auto bufferInfo = shaderInfo.uniformBuffer->DescriptorInfoForIndex(i * j);
+			VulkanDescriptorWriter(*shaderInfo.desriptorSetLayout, *shaderInfo.desriptorPool)
+				.writeBuffer(0, &bufferInfo)
+				.build(shaderInfo.descriptorSets[i * j]);
+		}
 	}
 
 	return shaderInfo;
