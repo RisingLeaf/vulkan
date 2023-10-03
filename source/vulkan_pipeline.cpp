@@ -148,10 +148,10 @@ VulkanShaderInfo VulkanPipeline::PrepareShaderInfo(VulkanDevice &device, ShaderI
 		for(int j = 0; j < bufferCount; j++)
 		{
 			shaderInfo.descriptorSets.emplace_back();
-			auto bufferInfo = shaderInfo.uniformBuffer->DescriptorInfoForIndex(i * j);
+			auto bufferInfo = shaderInfo.uniformBuffer->DescriptorInfoForIndex(i * bufferCount + j);
 			VulkanDescriptorWriter(*shaderInfo.desriptorSetLayout, *shaderInfo.desriptorPool)
 				.writeBuffer(0, &bufferInfo)
-				.build(shaderInfo.descriptorSets[i * j]);
+				.build(shaderInfo.descriptorSets[i * bufferCount + j]);
 		}
 	}
 

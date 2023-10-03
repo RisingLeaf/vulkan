@@ -239,7 +239,7 @@ void App::RecordCommandBuffer(int imageIndex)
 			0,
 			1,
 			&pipelineDescriptions[0].pipelineShaderInfo.descriptorSets[bufferIndex],
-			j,
+			1,
 			offsets.data());
 		
 		triangle.model->Draw(commandBuffers[imageIndex]);
