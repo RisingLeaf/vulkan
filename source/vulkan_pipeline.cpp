@@ -7,13 +7,28 @@
 #include <ios>
 #include <stdexcept>
 #include <string>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 #include <numeric>
 
 #include "logger.h"
 #include "es_vulkan.h"
+#include "source/vulkan_swapchain.h"
 #include "vulkan_device.h"
 #include "vulkan_model.h"
+
+
+
+std::vector<uint32_t> VulkanShaderInfo::GetDynamicOffsets(uint imageIndex, uint numElements)
+{
+	uint32_t alignmentSize = uniformBuffer->GetAlignmentSize();
+	std::vector<uint32_t> offsets;
+	uint realNumElements = std::max(numElements, uniformBuffer->GetInstanceCount() / VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+	for(uint i = 0; i < realNumElements; i++)
+		offsets.emplace_back(alignmentSize * (40 * imageIndex + i));
+
+	return offsets;
+}
 
 
 
@@ -23,6 +38,8 @@ VulkanPipeline::VulkanPipeline(VulkanDevice &device, const std::string &vertFile
 {
 	CreateGraphicsPipeline(vertFilePath, fragFilePath, configInfo, attributeDescriptors);
 }
+
+
 
 VulkanPipeline::~VulkanPipeline()
 {
@@ -113,14 +130,13 @@ void VulkanPipeline::DefaultPipelineConfigInfo(VulkanPipelineConfigInfo &configI
 
 VulkanShaderInfo VulkanPipeline::PrepareShaderInfo(VulkanDevice &device, ShaderInfo &inputInfo, const int maxFrames)
 {
-	VulkanShaderInfo shaderInfo;
+	VulkanShaderInfo shaderInfo{
+		.bufferCount = 40
+	};
+
 	uint32_t uniformSize = 0;
 	for(const auto &uniformValue : inputInfo.uniformLayout)
 		uniformSize += EsToVulkan::FORMAT_MAP_TYPE_SIZE.at(uniformValue);
-
-	Logger::Status(std::to_string(uniformSize));
-
-	uint32_t bufferCount = 40;
 
 	auto minOffsetAlignment = std::lcm(
 		device.properties.limits.minUniformBufferOffsetAlignment,
@@ -129,7 +145,7 @@ VulkanShaderInfo VulkanPipeline::PrepareShaderInfo(VulkanDevice &device, ShaderI
 	shaderInfo.uniformBuffer = std::make_unique<VulkanBuffer>(
 		device,
 		uniformSize,
-		bufferCount * maxFrames,
+		shaderInfo.bufferCount * maxFrames,
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
 		device.properties.limits.minUniformBufferOffsetAlignment);
@@ -137,21 +153,21 @@ VulkanShaderInfo VulkanPipeline::PrepareShaderInfo(VulkanDevice &device, ShaderI
 
 
 	shaderInfo.desriptorPool = VulkanDescriptorPool::Builder(device)
-		.setMaxSets(bufferCount * maxFrames)
-		.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, bufferCount * maxFrames)
+		.setMaxSets(shaderInfo.bufferCount * maxFrames)
+		.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, shaderInfo.bufferCount * maxFrames)
 		.build();
 	shaderInfo.desriptorSetLayout = VulkanDescriptorSetLayout::Builder(device)
 		.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
 		.build();
 	for(int i = 0; i < maxFrames; i++)
 	{
-		for(int j = 0; j < bufferCount; j++)
+		for(int j = 0; j < shaderInfo.bufferCount; j++)
 		{
 			shaderInfo.descriptorSets.emplace_back();
-			auto bufferInfo = shaderInfo.uniformBuffer->DescriptorInfoForIndex(i * bufferCount + j);
+			auto bufferInfo = shaderInfo.uniformBuffer->DescriptorInfoForIndex(i * shaderInfo.bufferCount + j);
 			VulkanDescriptorWriter(*shaderInfo.desriptorSetLayout, *shaderInfo.desriptorPool)
 				.writeBuffer(0, &bufferInfo)
-				.build(shaderInfo.descriptorSets[i * bufferCount + j]);
+				.build(shaderInfo.descriptorSets[i * shaderInfo.bufferCount + j]);
 		}
 	}
 

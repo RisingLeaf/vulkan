@@ -31,10 +31,13 @@ struct VulkanPipelineConfigInfo {
 
 struct VulkanShaderInfo {
 	std::unique_ptr<VulkanBuffer> uniformBuffer;
+	uint32_t bufferCount;
 
 	std::unique_ptr<VulkanDescriptorPool> desriptorPool;
 	std::unique_ptr<VulkanDescriptorSetLayout> desriptorSetLayout;
 	std::vector<VkDescriptorSet> descriptorSets;
+
+	std::vector<uint32_t> GetDynamicOffsets(uint imageIndex, uint numElements);
 };
 
 class VulkanPipeline {

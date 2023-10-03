@@ -213,13 +213,8 @@ void App::RecordCommandBuffer(int imageIndex)
 	pipelineDescriptions[0].pipeline->Bind(commandBuffers[imageIndex]);
 	triangle.model->Bind(commandBuffers[imageIndex]);
 
-	static const uint32_t alignmentSize = pipelineDescriptions[0].pipelineShaderInfo.uniformBuffer->GetAlignmentSize();
-	static const std::vector<uint32_t> offsets{ 
-		alignmentSize * (40 * imageIndex + 0),
-		alignmentSize * (40 * imageIndex + 1),
-		alignmentSize * (40 * imageIndex + 2),
-		alignmentSize * (40 * imageIndex + 3),
-	};
+
+	static const std::vector<uint32_t> offsets = pipelineDescriptions[0].pipelineShaderInfo.GetDynamicOffsets(imageIndex, 4);
 
 	for(int j = 0; j < 4; j++)
 	{
