@@ -153,12 +153,12 @@ VulkanShaderInfo VulkanPipeline::PrepareShaderInfo(VulkanDevice &device, ShaderI
 
 
 	shaderInfo.desriptorPool = VulkanDescriptorPool::Builder(device)
-		.setMaxSets(shaderInfo.bufferCount * maxFrames)
-		.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, shaderInfo.bufferCount * maxFrames)
-		.build();
+		.SetMaxSets(shaderInfo.bufferCount * maxFrames)
+		.AddPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, shaderInfo.bufferCount * maxFrames)
+		.Build();
 	shaderInfo.desriptorSetLayout = VulkanDescriptorSetLayout::Builder(device)
-		.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
-		.build();
+		.AddBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
+		.Build();
 	for(int i = 0; i < maxFrames; i++)
 	{
 		for(int j = 0; j < shaderInfo.bufferCount; j++)
@@ -166,8 +166,8 @@ VulkanShaderInfo VulkanPipeline::PrepareShaderInfo(VulkanDevice &device, ShaderI
 			shaderInfo.descriptorSets.emplace_back();
 			auto bufferInfo = shaderInfo.uniformBuffer->DescriptorInfoForIndex(i * shaderInfo.bufferCount + j);
 			VulkanDescriptorWriter(*shaderInfo.desriptorSetLayout, *shaderInfo.desriptorPool)
-				.writeBuffer(0, &bufferInfo)
-				.build(shaderInfo.descriptorSets[i * shaderInfo.bufferCount + j]);
+				.WriteBuffer(0, &bufferInfo)
+				.Build(shaderInfo.descriptorSets[i * shaderInfo.bufferCount + j]);
 		}
 	}
 
@@ -229,10 +229,7 @@ void VulkanPipeline::CreateGraphicsPipeline(const std::string &vertFilePath, con
 
 	uint32_t sizePerVertex = 0;
 	for(const auto &attributeDescriptor : attributeDescriptors)
-	{
 		sizePerVertex += EsToVulkan::FORMAT_MAP_SIZE.at(attributeDescriptor);
-	}
-	Logger::Status("Floats per Vertex: " + std::to_string(sizePerVertex));
 
 	std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
 	bindingDescriptions[0].binding = 0;

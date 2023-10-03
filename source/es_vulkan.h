@@ -39,4 +39,7 @@ namespace EsToVulkan {
 struct ShaderInfo {
 	std::vector<AttributeSize> attributeLayout;
 	std::vector<AttributeSize> uniformLayout;
+
+	std::string vertexShaderFilename;
+	std::string fragmentShaderFilename;
 };

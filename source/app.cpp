@@ -26,10 +26,11 @@
 
 
 
-App::App(std::string name, int width, int height)
+App::App(const std::string &name, uint width, uint height)
 : width(width), height(height), window(width, height, name), device(window)
 {
 	pipelineDescriptions.emplace_back();
+
 	pipelineDescriptions[0].shaderInfo.attributeLayout = {
 		AttributeSize::VECTOR_TWO,
 		AttributeSize::VECTOR_FOUR,
@@ -38,11 +39,14 @@ App::App(std::string name, int width, int height)
 		AttributeSize::VECTOR_TWO,
 		AttributeSize::VECTOR_THREE,
 	};
+	pipelineDescriptions[0].shaderInfo.vertexShaderFilename = "../../resources/shaders/shader.vert.spv";
+	pipelineDescriptions[0].shaderInfo.fragmentShaderFilename = "../../resources/shaders/shader.frag.spv";
+
 	pipelineDescriptions[0].pipelineShaderInfo = VulkanPipeline::PrepareShaderInfo(device, pipelineDescriptions[0].shaderInfo,
 		VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 	CreatePipelineLayout(pipelineDescriptions[0]);
+	triangle.model = std::make_unique<VulkanModel>(device, triangle.vertices, pipelineDescriptions[0].shaderInfo.attributeLayout);
 
-	LoadModel(pipelineDescriptions[0].shaderInfo);
 	RecreateSwapChain();
 	CreateCommandBuffers();
 }
@@ -72,7 +76,7 @@ void App::Run()
 
 void App::CreatePipelineLayout(VulkanPipelineDescription &pipelineDescription)
 {
-	std::vector<VkDescriptorSetLayout> descriptorSetLayouts{pipelineDescription.pipelineShaderInfo.desriptorSetLayout->getDescriptorSetLayout()};
+	std::vector<VkDescriptorSetLayout> descriptorSetLayouts{pipelineDescription.pipelineShaderInfo.desriptorSetLayout->GetDescriptorSetLayout()};
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -94,8 +98,12 @@ void App::CreatePipeline(VulkanPipelineDescription &pipelineDescription)
   	VulkanPipeline::DefaultPipelineConfigInfo(pipelineConfig);
 	pipelineConfig.renderPass = swapChain->GetRenderPass();
 	pipelineConfig.pipelineLayout = pipelineDescription.pipelineLayout;
-	pipelineDescription.pipeline = std::make_unique<VulkanPipeline>(device,
-		"../../resources/shaders/shader.vert.spv", "../../resources/shaders/shader.frag.spv", pipelineConfig, pipelineDescription.shaderInfo.attributeLayout);
+	pipelineDescription.pipeline = std::make_unique<VulkanPipeline>(
+		device,
+		pipelineDescription.shaderInfo.vertexShaderFilename,
+		pipelineDescription.shaderInfo.fragmentShaderFilename,
+		pipelineConfig,
+		pipelineDescription.shaderInfo.attributeLayout);
 }
 
 
@@ -220,10 +228,10 @@ void App::RecordCommandBuffer(int imageIndex)
 	{
 		std::vector<float> uniformData = {
 			0.0f, -0.1f * j, 0.0f, 0.0f, // offset
-			0.0f,  0.0f, 0.25f * j, // color
+			0.1f * j,  0.0f, 0.25f * j, // color
 		};
 
-		uint32_t bufferIndex = (40 * imageIndex) + j;
+		uint32_t bufferIndex = (pipelineDescriptions[0].pipelineShaderInfo.bufferCount * imageIndex) + j;
 		pipelineDescriptions[0].pipelineShaderInfo.uniformBuffer->WriteToIndex(uniformData.data(), bufferIndex);
 		pipelineDescriptions[0].pipelineShaderInfo.uniformBuffer->FlushIndex(bufferIndex);
 
@@ -244,11 +252,4 @@ void App::RecordCommandBuffer(int imageIndex)
 
 	if (vkEndCommandBuffer(commandBuffers[imageIndex]) != VK_SUCCESS)
 		throw std::runtime_error("failed to record command buffer!");
-}
-
-
-
-void App::LoadModel(const ShaderInfo &shaderInfo)
-{
-	triangle.model = std::make_unique<VulkanModel>(device, triangle.vertices, shaderInfo.attributeLayout);
 }

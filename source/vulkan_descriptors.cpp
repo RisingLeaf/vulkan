@@ -5,7 +5,7 @@
 
 
 
-VulkanDescriptorSetLayout::Builder &VulkanDescriptorSetLayout::Builder::addBinding(uint32_t binding, VkDescriptorType descriptorType,
+VulkanDescriptorSetLayout::Builder &VulkanDescriptorSetLayout::Builder::AddBinding(uint32_t binding, VkDescriptorType descriptorType,
 	VkShaderStageFlags stageFlags, uint32_t count)
 {
 	assert(bindings.count(binding) == 0 && "Binding already in use");
@@ -20,7 +20,7 @@ VulkanDescriptorSetLayout::Builder &VulkanDescriptorSetLayout::Builder::addBindi
 
 
 
-std::unique_ptr<VulkanDescriptorSetLayout> VulkanDescriptorSetLayout::Builder::build() const
+std::unique_ptr<VulkanDescriptorSetLayout> VulkanDescriptorSetLayout::Builder::Build() const
 {
 	return std::make_unique<VulkanDescriptorSetLayout>(device, bindings);
 }
@@ -52,7 +52,7 @@ VulkanDescriptorSetLayout::~VulkanDescriptorSetLayout()
 
 
 
-VulkanDescriptorPool::Builder &VulkanDescriptorPool::Builder::addPoolSize(VkDescriptorType descriptorType, uint32_t count)
+VulkanDescriptorPool::Builder &VulkanDescriptorPool::Builder::AddPoolSize(VkDescriptorType descriptorType, uint32_t count)
 {
 	poolSizes.push_back({descriptorType, count});
 	return *this;
@@ -60,7 +60,7 @@ VulkanDescriptorPool::Builder &VulkanDescriptorPool::Builder::addPoolSize(VkDesc
 
 
 
-VulkanDescriptorPool::Builder &VulkanDescriptorPool::Builder::setPoolFlags(VkDescriptorPoolCreateFlags flags)
+VulkanDescriptorPool::Builder &VulkanDescriptorPool::Builder::SetPoolFlags(VkDescriptorPoolCreateFlags flags)
 {
 	poolFlags = flags;
 	return *this;
@@ -68,7 +68,7 @@ VulkanDescriptorPool::Builder &VulkanDescriptorPool::Builder::setPoolFlags(VkDes
 
 
 
-VulkanDescriptorPool::Builder &VulkanDescriptorPool::Builder::setMaxSets(uint32_t count)
+VulkanDescriptorPool::Builder &VulkanDescriptorPool::Builder::SetMaxSets(uint32_t count)
 {
 	maxSets = count;
 	return *this;
@@ -76,7 +76,7 @@ VulkanDescriptorPool::Builder &VulkanDescriptorPool::Builder::setMaxSets(uint32_
 
 
 
-std::unique_ptr<VulkanDescriptorPool> VulkanDescriptorPool::Builder::build() const
+std::unique_ptr<VulkanDescriptorPool> VulkanDescriptorPool::Builder::Build() const
 {
 	return std::make_unique<VulkanDescriptorPool>(device, maxSets, poolFlags, poolSizes);
 }
@@ -107,7 +107,7 @@ VulkanDescriptorPool::~VulkanDescriptorPool()
 
 
 
-bool VulkanDescriptorPool::allocateDescriptor(const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet &descriptor) const
+bool VulkanDescriptorPool::AllocateDescriptor(const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet &descriptor) const
 {
 	VkDescriptorSetAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -123,14 +123,14 @@ bool VulkanDescriptorPool::allocateDescriptor(const VkDescriptorSetLayout descri
 
 
 
-void VulkanDescriptorPool::freeDescriptors(std::vector<VkDescriptorSet> &descriptors) const
+void VulkanDescriptorPool::FreeDescriptors(std::vector<VkDescriptorSet> &descriptors) const
 {
 	vkFreeDescriptorSets(device.Device(), descriptorPool, static_cast<uint32_t>(descriptors.size()), descriptors.data());
 }
 
 
 
-void VulkanDescriptorPool::resetPool()
+void VulkanDescriptorPool::ResetPool()
 {
 	vkResetDescriptorPool(device.Device(), descriptorPool, 0);
 }
@@ -142,7 +142,7 @@ VulkanDescriptorWriter::VulkanDescriptorWriter(VulkanDescriptorSetLayout &setLay
 
 
 
-VulkanDescriptorWriter &VulkanDescriptorWriter::writeBuffer(uint32_t binding, VkDescriptorBufferInfo *bufferInfo)
+VulkanDescriptorWriter &VulkanDescriptorWriter::WriteBuffer(uint32_t binding, VkDescriptorBufferInfo *bufferInfo)
 {
 	assert(setLayout.bindings.count(binding) == 1 && "Layout does not contain specified binding");
 
@@ -163,7 +163,7 @@ VulkanDescriptorWriter &VulkanDescriptorWriter::writeBuffer(uint32_t binding, Vk
 
 
 
-VulkanDescriptorWriter &VulkanDescriptorWriter::writeImage(uint32_t binding, VkDescriptorImageInfo *imageInfo)
+VulkanDescriptorWriter &VulkanDescriptorWriter::WriteImage(uint32_t binding, VkDescriptorImageInfo *imageInfo)
 {
 	assert(setLayout.bindings.count(binding) == 1 && "Layout does not contain specified binding");
 
@@ -184,19 +184,19 @@ VulkanDescriptorWriter &VulkanDescriptorWriter::writeImage(uint32_t binding, VkD
 
 
 
-bool VulkanDescriptorWriter::build(VkDescriptorSet &set)
+bool VulkanDescriptorWriter::Build(VkDescriptorSet &set)
 {
-	bool success = pool.allocateDescriptor(setLayout.getDescriptorSetLayout(), set);
+	bool success = pool.AllocateDescriptor(setLayout.GetDescriptorSetLayout(), set);
 	if (!success)
 		return false;
 
-	overwrite(set);
+	Overwrite(set);
 	return true;
 }
 
 
 
-void VulkanDescriptorWriter::overwrite(VkDescriptorSet &set)
+void VulkanDescriptorWriter::Overwrite(VkDescriptorSet &set)
 {
 	for (auto &write : writes)
 		write.dstSet = set;

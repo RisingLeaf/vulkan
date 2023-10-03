@@ -25,7 +25,6 @@ public:
 
 	struct Object {
 		std::vector<float> vertices = {
-			// pos       // color
 			0.0f, -0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
 			0.5f,  0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
 			-0.5f, 0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
@@ -35,9 +34,10 @@ public:
 	};
 
 public:
-	int width, height;
+	uint width, height;
+	uint frame;
 
-	App(std::string name, int width, int height);
+	App(const std::string &name, uint width, uint height);
 	~App();
 
 	App(const App &) = delete;
