@@ -219,7 +219,7 @@ void App::RecordCommandBuffer(int imageIndex)
 	for(int j = 0; j < 4; j++)
 	{
 		std::vector<float> uniformData = {
-			0.0f, -0.1f * j, // offset
+			0.0f, -0.1f * j, 0.0f, 0.0f, // offset
 			0.0f,  0.0f, 0.25f * j, // color
 		};
 
