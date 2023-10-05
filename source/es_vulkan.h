@@ -42,4 +42,5 @@ struct ShaderInfo {
 
 	std::string vertexShaderFilename;
 	std::string fragmentShaderFilename;
+	uint numTextures = 1;
 };

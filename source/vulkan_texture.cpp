@@ -1,12 +1,14 @@
 #include "vulkan_texture.h"
 
+#include "source/logger.h"
 #include "vulkan_buffer.h"
 #include "vulkan_buffer.h"
+#include "external/stb_image.h"
 
 #include <cmath>
+#include <string>
 #include <vulkan/vulkan_core.h>
 #include <stdexcept>
-#include <SOIL/SOIL.h>
 
 
 
@@ -16,7 +18,7 @@ VulkanTexture::VulkanTexture(VulkanDevice &device, const std::string &filepath)
 	int channels;
 	int m_BytesPerPixel;
 
-	unsigned char *pixels = SOIL_load_image(filepath.c_str(), &width, &height, 0, SOIL_LOAD_RGBA);
+	stbi_uc *data = stbi_load(filepath.c_str(), &width, &height, &channels, 4);
 
 	mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 
@@ -29,7 +31,7 @@ VulkanTexture::VulkanTexture(VulkanDevice &device, const std::string &filepath)
 	};
 
 	stagingBuffer.Map();
-	stagingBuffer.WriteToBuffer(pixels);
+	stagingBuffer.WriteToBuffer(data);
 
 	imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
 
@@ -86,7 +88,10 @@ VulkanTexture::VulkanTexture(VulkanDevice &device, const std::string &filepath)
 	imageViewInfo.subresourceRange.levelCount = mipLevels;
 	imageViewInfo.image = image;
 
-	vkCreateImageView(device.Device(), &imageViewInfo, nullptr, &imageView);
+	if(vkCreateImageView(device.Device(), &imageViewInfo, nullptr, &imageView) == VK_SUCCESS)
+		Logger::Status("Image works!");
+
+	Logger::Status("WIdth, Height: " + std::to_string(width) + ", " + std::to_string(height));
 }
 
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "source/vulkan_texture.h"
 #include "vulkan_descriptors.h"
 #include "vulkan_model.h"
 #include "window.h"
@@ -7,6 +8,7 @@
 #include "vulkan_pipeline.h"
 #include "vulkan_swapchain.h"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <vulkan/vulkan_core.h>
@@ -25,9 +27,9 @@ public:
 
 	struct Object {
 		std::vector<float> vertices = {
-			0.0f, -0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
-			0.5f,  0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
-			-0.5f, 0.5f,  0.1f, 0.0f, 0.0f, 1.0f,
+			0.0f, -0.5f,  1.0f, 0.0f,
+			0.5f,  0.5f,  1.0f, 1.0f,
+			-0.5f, 0.5f,  0.0f, 1.0f,
 		} ;
 
 		std::unique_ptr<VulkanModel> model;
@@ -49,15 +51,20 @@ public:
 	void Run();
 
 private:
+	void CreateTextureDescriptors();
+
 	void CreatePipelineLayout(VulkanPipelineDescription &pipelineDescription);
+	void RecreateSwapChain();
 	void CreatePipeline(VulkanPipelineDescription &pipelineDescription);
+
 	void CreateCommandBuffers();
 	void FreeCommandBuffers();
+
 	void DrawFrame();
-	void RecreateSwapChain();
 	void RecordCommandBuffer(int imageIndex);
+
 	
-	void LoadModel(const ShaderInfo &shaderInfo);
+	int LoadTexture(const std::string &path, uint binding);
 
 	Window window;
 	VulkanDevice device;
@@ -66,4 +73,9 @@ private:
 	std::vector<VkCommandBuffer> commandBuffers;
 
 	Object triangle;
+
+	std::vector<std::unique_ptr<VulkanTexture>> textures[2];
+	std::unique_ptr<VulkanDescriptorPool> desriptorPool;
+	std::unique_ptr<VulkanDescriptorSetLayout> desriptorSetLayout;
+	std::vector<VkDescriptorSet> descriptorSets;
 };

@@ -167,7 +167,7 @@ VulkanShaderInfo VulkanPipeline::PrepareShaderInfo(VulkanDevice &device, ShaderI
 			auto bufferInfo = shaderInfo.uniformBuffer->DescriptorInfoForIndex(i * shaderInfo.bufferCount + j);
 			VulkanDescriptorWriter(*shaderInfo.desriptorSetLayout, *shaderInfo.desriptorPool)
 				.WriteBuffer(0, &bufferInfo)
-				.Build(shaderInfo.descriptorSets[i * shaderInfo.bufferCount + j]);
+				.Build(shaderInfo.descriptorSets.back());
 		}
 	}
 

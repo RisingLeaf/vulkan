@@ -2,6 +2,7 @@
 
 #include "es_vulkan.h"
 #include "logger.h"
+#include "source/vulkan_texture.h"
 #include "vulkan_buffer.h"
 #include "vulkan_descriptors.h"
 #include "vulkan_device.h"
@@ -16,6 +17,7 @@
 #include <cassert>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -24,16 +26,24 @@
 #include<unistd.h>
 #include <chrono>
 
+namespace {
+	int texId;
+}
+
 
 
 App::App(const std::string &name, uint width, uint height)
 : width(width), height(height), window(width, height, name), device(window)
 {
-	pipelineDescriptions.emplace_back();
+	texId = LoadTexture("../../resources/textures/anti-missile hai.png", 1);
+	CreateTextureDescriptors();
 
+
+
+	pipelineDescriptions.emplace_back();
 	pipelineDescriptions[0].shaderInfo.attributeLayout = {
 		AttributeSize::VECTOR_TWO,
-		AttributeSize::VECTOR_FOUR,
+		AttributeSize::VECTOR_TWO,
 	};
 	pipelineDescriptions[0].shaderInfo.uniformLayout = {
 		AttributeSize::VECTOR_TWO,
@@ -41,11 +51,12 @@ App::App(const std::string &name, uint width, uint height)
 	};
 	pipelineDescriptions[0].shaderInfo.vertexShaderFilename = "../../resources/shaders/shader.vert.spv";
 	pipelineDescriptions[0].shaderInfo.fragmentShaderFilename = "../../resources/shaders/shader.frag.spv";
-
 	pipelineDescriptions[0].pipelineShaderInfo = VulkanPipeline::PrepareShaderInfo(device, pipelineDescriptions[0].shaderInfo,
 		VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 	CreatePipelineLayout(pipelineDescriptions[0]);
 	triangle.model = std::make_unique<VulkanModel>(device, triangle.vertices, pipelineDescriptions[0].shaderInfo.attributeLayout);
+
+
 
 	RecreateSwapChain();
 	CreateCommandBuffers();
@@ -74,9 +85,40 @@ void App::Run()
 
 
 
+void App::CreateTextureDescriptors()
+{
+	auto minOffsetAlignment = std::lcm(
+		device.properties.limits.minUniformBufferOffsetAlignment,
+		device.properties.limits.nonCoherentAtomSize);
+
+	desriptorPool = VulkanDescriptorPool::Builder(device)
+		.SetMaxSets(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT)
+		.AddPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VulkanSwapChain::MAX_FRAMES_IN_FLIGHT)
+		.Build();
+	desriptorSetLayout = VulkanDescriptorSetLayout::Builder(device)
+		.AddBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+		.Build();
+	for(int j = 0; j < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; j++)
+	{
+		descriptorSets.emplace_back();
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = textures[0][texId]->GetImageLayout();
+		imageInfo.imageView = textures[0][texId]->GetImageView();
+		imageInfo.sampler = textures[0][texId]->GetSampler();
+		VulkanDescriptorWriter(*desriptorSetLayout, *desriptorPool)
+			.WriteImage(1, &imageInfo)
+			.Build(descriptorSets.back());
+	}
+}
+
+
+
 void App::CreatePipelineLayout(VulkanPipelineDescription &pipelineDescription)
 {
-	std::vector<VkDescriptorSetLayout> descriptorSetLayouts{pipelineDescription.pipelineShaderInfo.desriptorSetLayout->GetDescriptorSetLayout()};
+	std::vector<VkDescriptorSetLayout> descriptorSetLayouts{
+		pipelineDescription.pipelineShaderInfo.desriptorSetLayout->GetDescriptorSetLayout(),
+		desriptorSetLayout->GetDescriptorSetLayout()
+	};
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -86,6 +128,35 @@ void App::CreatePipelineLayout(VulkanPipelineDescription &pipelineDescription)
 	pipelineLayoutInfo.pPushConstantRanges = nullptr;
 	if(vkCreatePipelineLayout(device.Device(), &pipelineLayoutInfo, nullptr, &pipelineDescription.pipelineLayout) != VK_SUCCESS)
 		throw std::runtime_error("failed to create pipline layout");
+}
+
+
+
+void App::RecreateSwapChain()
+{
+	auto extent = window.GetExtent();
+	while(extent.width == 0 || extent.height == 0)
+	{
+		extent = window.GetExtent();
+		glfwWaitEvents();
+	}		
+
+	vkDeviceWaitIdle(device.Device());
+	Logger::Status("Creating SwapChain");
+	if(swapChain == nullptr)
+		swapChain = std::make_unique<VulkanSwapChain>(device, extent);
+	else
+	{
+		swapChain = std::make_unique<VulkanSwapChain>(device, extent, std::move(swapChain));
+		if(swapChain->ImageCount() != commandBuffers.size())
+		{
+			FreeCommandBuffers();
+			CreateCommandBuffers();
+		}
+	}
+
+	for(auto &pipelineDescription : pipelineDescriptions)
+		CreatePipeline(pipelineDescription);
 }
 
 
@@ -157,35 +228,6 @@ void App::DrawFrame()
 
 
 
-void App::RecreateSwapChain()
-{
-	auto extent = window.GetExtent();
-	while(extent.width == 0 || extent.height == 0)
-	{
-		extent = window.GetExtent();
-		glfwWaitEvents();
-	}		
-
-	vkDeviceWaitIdle(device.Device());
-	Logger::Status("Creating SwapChain");
-	if(swapChain == nullptr)
-		swapChain = std::make_unique<VulkanSwapChain>(device, extent);
-	else
-	{
-		swapChain = std::make_unique<VulkanSwapChain>(device, extent, std::move(swapChain));
-		if(swapChain->ImageCount() != commandBuffers.size())
-		{
-			FreeCommandBuffers();
-			CreateCommandBuffers();
-		}
-	}
-
-	for(auto &pipelineDescription : pipelineDescriptions)
-		CreatePipeline(pipelineDescription);
-}
-
-
-
 void App::RecordCommandBuffer(int imageIndex)
 {
 	VkCommandBufferBeginInfo beginInfo{};
@@ -221,6 +263,16 @@ void App::RecordCommandBuffer(int imageIndex)
 	pipelineDescriptions[0].pipeline->Bind(commandBuffers[imageIndex]);
 	triangle.model->Bind(commandBuffers[imageIndex]);
 
+	vkCmdBindDescriptorSets(
+			commandBuffers[imageIndex],
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			pipelineDescriptions[0].pipelineLayout,
+			1,
+			1,
+			&descriptorSets[imageIndex],
+			0,
+			nullptr);
+
 
 	static const std::vector<uint32_t> offsets = pipelineDescriptions[0].pipelineShaderInfo.GetDynamicOffsets(imageIndex, 4);
 
@@ -252,4 +304,13 @@ void App::RecordCommandBuffer(int imageIndex)
 
 	if (vkEndCommandBuffer(commandBuffers[imageIndex]) != VK_SUCCESS)
 		throw std::runtime_error("failed to record command buffer!");
+}
+
+
+
+int App::LoadTexture(const std::string &filepath, uint binding)
+{
+	assert(binding > 0 && "Binding 0 is reserved for the uniform buffer.");
+	textures[binding - 1].emplace_back(std::make_unique<VulkanTexture>(device, filepath));
+	return textures[binding - 1].size() - 1;
 }
