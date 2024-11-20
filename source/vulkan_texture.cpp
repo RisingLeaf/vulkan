@@ -3,6 +3,7 @@
 #include "source/logger.h"
 #include "vulkan_buffer.h"
 #include "vulkan_buffer.h"
+#define STB_IMAGE_IMPLEMENTATION
 #include "external/stb_image.h"
 
 #include <cmath>

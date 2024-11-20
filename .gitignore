@@ -1,3 +1,5 @@
 .cache/
 build/
 *.spv
+.idea/
+cmake-build*

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.7)
 
-project(opengl)
+project(vulkan)
 set(TARGET_NAME exec)
 set(CMAKE_CXX_STANDARD 17)
 
@@ -8,17 +8,17 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(./)
 
 set(SOURCE_ALL
-	./source/main.cpp
-  ./source/logger.cpp
-  ./source/window.cpp
-  ./source/app.cpp
-  ./source/vulkan_pipeline.cpp
-  ./source/vulkan_device.cpp
-  ./source/vulkan_swapchain.cpp
-  ./source/vulkan_model.cpp
-  ./source/vulkan_buffer.cpp
-  ./source/vulkan_descriptors.cpp
-  ./source/vulkan_texture.cpp
+        ./source/main.cpp
+        ./source/logger.cpp
+        ./source/window.cpp
+        ./source/app.cpp
+        ./source/vulkan_pipeline.cpp
+        ./source/vulkan_device.cpp
+        ./source/vulkan_swapchain.cpp
+        ./source/vulkan_model.cpp
+        ./source/vulkan_buffer.cpp
+        ./source/vulkan_descriptors.cpp
+        ./source/vulkan_texture.cpp
 )
 
 
@@ -47,6 +47,7 @@ if (UNIX)
   find_package(GLEW REQUIRED)
   find_package(glfw3 3.3 REQUIRED)
   find_package(Freetype REQUIRED)
+  find_package(SDL2 REQUIRED)
   
   # look for SDL2
   if(APPLE)
@@ -57,11 +58,6 @@ if (UNIX)
 
   include_directories("/usr/include/freetype2")
 
-  include(FindPkgConfig)
-  PKG_SEARCH_MODULE(SDL2 REQUIRED sdl2)
-  include_directories(${SDL2_INCLUDE_DIRS} ${SDL2IMAGE_INCLUDE_DIRS})
-
-  set(SOIL_LIBRARY SOIL)
   set(SDL2_LIBRARY SDL2)
 
   set(CMAKE_THREAD_LIBS_INIT "-lpthread")
@@ -71,11 +67,11 @@ if (UNIX)
   set(CMAKE_USE_PTHREADS_INIT 1)
   set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-  target_link_libraries(${TARGET_NAME} ${CMAKE_DL_LIBS} ${SDL2_LIBRARY} ${SOIL_LIBRARY} Vulkan::Vulkan ${FREETYPE_LIBRARIES} GLEW::GLEW glfw)
+  target_link_libraries(${TARGET_NAME} ${CMAKE_DL_LIBS} SDL2::SDL2 Vulkan::Vulkan ${FREETYPE_LIBRARIES} GLEW::GLEW glfw)
 
 
 
-  file(GLOB_RECURSE GLSL_SOURCE_FILES "resources/shaders/*.frag" "resources/shaders/*.vert")
+  file(GLOB_RECURSE GLSL_SOURCE_FILES "./resources/shaders/*.frag" "./resources/shaders/*.vert")
 
   foreach(GLSL ${GLSL_SOURCE_FILES})
     message("Found Shader: ${GLSL}")

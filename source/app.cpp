@@ -13,7 +13,6 @@
 
 #include <GLFW/glfw3.h>
 #include <array>
-#include <bits/types/time_t.h>
 #include <cassert>
 #include <cstdint>
 #include <memory>
