@@ -10,9 +10,9 @@
 
 enum class AttributeSize : uint32_t {
 	SIMPLE_FLOAT = 1,
-	VECTOR_TWO = 2,
+	VECTOR_TWO   = 2,
 	VECTOR_THREE = 3,
-	VECTOR_FOUR = 4,
+	VECTOR_FOUR  = 4,
 };
 
 namespace EsToVulkan {

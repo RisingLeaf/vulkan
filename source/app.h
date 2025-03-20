@@ -64,7 +64,7 @@ private:
 	void RecordCommandBuffer(int imageIndex);
 
 	
-	int LoadTexture(const std::string &path, uint binding);
+	int LoadTexture(const std::vector<std::string> &filepaths, uint binding);
 
 	Window window;
 	VulkanDevice device;

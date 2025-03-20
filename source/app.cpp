@@ -34,7 +34,8 @@ namespace {
 App::App(const std::string &name, uint width, uint height)
 : width(width), height(height), window(width, height, name), device(window)
 {
-	texId = LoadTexture("../../resources/textures/anti-missile hai.png", 1);
+	std::vector<std::string> paths = {"../../resources/textures/anti-missile hai.png"};
+	texId = LoadTexture(paths, 1);
 	CreateTextureDescriptors();
 
 
@@ -273,7 +274,7 @@ void App::RecordCommandBuffer(int imageIndex)
 			nullptr);
 
 
-	static const std::vector<uint32_t> offsets = pipelineDescriptions[0].pipelineShaderInfo.GetDynamicOffsets(imageIndex, 4);
+	std::vector<uint32_t> offsets = pipelineDescriptions[0].pipelineShaderInfo.GetDynamicOffsets(imageIndex, 4);
 
 	for(int j = 0; j < 4; j++)
 	{
@@ -307,9 +308,9 @@ void App::RecordCommandBuffer(int imageIndex)
 
 
 
-int App::LoadTexture(const std::string &filepath, uint binding)
+int App::LoadTexture(const std::vector<std::string> &filepaths, uint binding)
 {
 	assert(binding > 0 && "Binding 0 is reserved for the uniform buffer.");
-	textures[binding - 1].emplace_back(std::make_unique<VulkanTexture>(device, filepath));
+	textures[binding - 1].emplace_back(std::make_unique<VulkanTexture>(device, filepaths));
 	return textures[binding - 1].size() - 1;
 }

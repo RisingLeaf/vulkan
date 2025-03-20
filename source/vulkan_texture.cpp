@@ -7,19 +7,27 @@
 #include "external/stb_image.h"
 
 #include <cmath>
+#include <cstring>
 #include <string>
-#include <vulkan/vulkan_core.h>
 #include <stdexcept>
+#include <vulkan/vulkan_core.h>
 
 
 
-VulkanTexture::VulkanTexture(VulkanDevice &device, const std::string &filepath)
+VulkanTexture::VulkanTexture(VulkanDevice &device, const std::vector<std::string> &filepaths)
 : device{device}
 {
 	int channels;
 	int m_BytesPerPixel;
 
-	stbi_uc *data = stbi_load(filepath.c_str(), &width, &height, &channels, 4);
+	std::vector<stbi_uc> loadVector;
+	for(const auto &filepath : filepaths)
+	{
+		stbi_uc *ndata = stbi_load(filepath.c_str(), &width, &height, &channels, 4);
+		for(int i = 0; i < width * height * channels; i++)
+			loadVector.emplace_back(ndata[i]);
+	}
+	stbi_uc *data = loadVector.data();//stbi_load(filepath.c_str(), &width, &height, &channels, 4);
 
 	mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 
@@ -79,7 +87,7 @@ VulkanTexture::VulkanTexture(VulkanDevice &device, const std::string &filepath)
 
 	VkImageViewCreateInfo imageViewInfo {};
 	imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 	imageViewInfo.format = imageFormat;
 	imageViewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
 	imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;

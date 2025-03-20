@@ -7,7 +7,7 @@
 
 class VulkanTexture {
 public:
-	VulkanTexture(VulkanDevice &device, const std::string &filepath);
+	VulkanTexture(VulkanDevice &device, const std::vector<std::string> &filepaths);
 	~VulkanTexture();
 
 	VulkanTexture(const VulkanTexture &) = delete;
